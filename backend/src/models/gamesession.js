@@ -3,6 +3,8 @@ module.exports = (sequelize, DataTypes) => {
     "GameSession",
     {
       draw_numbers: DataTypes.ARRAY(DataTypes.INTEGER),
+      status: DataTypes.ENUM("waiting", "in_progress", "completed"),
+      players: DataTypes.ARRAY(DataTypes.INTEGER), // Stores user IDs of players in the session
     },
     {}
   );
