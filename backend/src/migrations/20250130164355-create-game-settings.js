@@ -1,31 +1,33 @@
-"use strict";
-
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("GameSessions", {
+    await queryInterface.createTable("GameSettings", {
       id: {
-        allowNull: false,
+        type: Sequelize.INTEGER,
         autoIncrement: true,
         primaryKey: true,
-        type: Sequelize.INTEGER,
       },
-      draw_numbers: {
-        type: Sequelize.ARRAY(Sequelize.INTEGER),
+      rtp: {
+        type: Sequelize.FLOAT,
         allowNull: false,
+        defaultValue: 95.0,
       },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
       updatedAt: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
+
+    // Insert default RTP setting
+    await queryInterface.bulkInsert("GameSettings", [
+      { rtp: 85.0, createdAt: new Date(), updatedAt: new Date() },
+    ]);
   },
+
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable("GameSessions");
+    await queryInterface.dropTable("GameSettings");
   },
 };

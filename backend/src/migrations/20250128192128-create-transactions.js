@@ -1,22 +1,23 @@
 "use strict";
-
+/** @type {import('sequelize-cli').Migration} */
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("Transactions", {
+    await queryInterface.createTable("transactions", {
       id: {
+        type: Sequelize.UUID,
+        defaultValue: Sequelize.UUIDV4,
         allowNull: false,
-        autoIncrement: true,
         primaryKey: true,
-        type: Sequelize.INTEGER,
       },
-      user_id: {
-        type: Sequelize.INTEGER,
+      userId: {
+        type: Sequelize.UUID,
+        allowNull: false,
         references: {
-          model: "Users",
+          model: "users",
           key: "id",
         },
+        onUpdate: "CASCADE",
         onDelete: "CASCADE",
-        allowNull: false,
       },
       type: {
         type: Sequelize.ENUM("deposit", "withdrawal", "payout"),
@@ -26,19 +27,24 @@ module.exports = {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
       },
+      status: {
+        type: Sequelize.ENUM("pending", "completed", "failed"),
+        defaultValue: "pending",
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        defaultValue: Sequelize.fn("NOW"),
       },
       updatedAt: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        defaultValue: Sequelize.fn("NOW"),
       },
     });
   },
+
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable("Transactions");
+    await queryInterface.dropTable("transactions");
   },
 };

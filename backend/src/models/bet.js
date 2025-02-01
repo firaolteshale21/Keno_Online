@@ -1,16 +1,69 @@
+"use strict";
+const { Model } = require("sequelize");
+
 module.exports = (sequelize, DataTypes) => {
-  const Bet = sequelize.define(
-    "Bet",
+  class Bet extends Model {
+    static associate(models) {
+      // A Bet belongs to a User
+      Bet.belongsTo(models.User, {
+        foreignKey: "userId",
+        as: "user",
+      });
+      // A Bet belongs to a GameRound
+      Bet.belongsTo(models.GameRound, {
+        foreignKey: "gameRoundId",
+        as: "gameRound",
+      });
+    }
+  }
+
+  Bet.init(
     {
-      selected_numbers: DataTypes.ARRAY(DataTypes.INTEGER),
-      bet_amount: DataTypes.DECIMAL(10, 2),
-      payout: DataTypes.DECIMAL(10, 2),
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
+      userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "users",
+          key: "id",
+        },
+      },
+      numbersChosen: {
+        type: DataTypes.ARRAY(DataTypes.INTEGER),
+        allowNull: false,
+      },
+      betAmount: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+      },
+      winningAmount: {
+        type: DataTypes.DECIMAL(10, 2),
+        defaultValue: 0.0,
+      },
+      status: {
+        type: DataTypes.ENUM("pending", "won", "lost"),
+        defaultValue: "pending",
+      },
+      gameRoundId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "GameRound",
+          key: "id",
+        },
+      },
     },
-    {}
+    {
+      sequelize,
+      modelName: "Bet",
+      tableName: "bets",
+      timestamps: true,
+    }
   );
-  Bet.associate = function (models) {
-    Bet.belongsTo(models.User, { foreignKey: "user_id" });
-    Bet.belongsTo(models.GameSession, { foreignKey: "game_session_id" });
-  };
+
   return Bet;
 };

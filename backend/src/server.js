@@ -1,86 +1,46 @@
-const http = require("http");
-const { Server } = require("socket.io");
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
-const sequelize = require("./config/database");
-const authRoutes = require("./routes/authRoutes");
-const gameRoutes = require("./routes/gameRoutes");
+const http = require("http"); // Required for WebSockets
+const { Server } = require("socket.io");
 
-// Load environment variables
-dotenv.config();
-
-// Initialize Express app
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Allow all origins (update this for production)
-    methods: ["GET", "POST"],
-  },
-});
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Test database connection
-sequelize
-  .authenticate()
-  .then(() => console.log("Database connected successfully"))
-  .catch((err) => console.error("Unable to connect to the database:", err));
+// Attach io to app
+app.set("io", io);
 
-// Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/game", gameRoutes);
+// ✅ Store the global game state
+let currentGameStatus = "inactive";
+app.set("currentGameStatus", currentGameStatus);
 
-// Socket.IO connection
+// WebSocket Connection
 io.on("connection", (socket) => {
-  console.log("A user connected:", socket.id);
+  console.log("A player connected:", socket.id);
 
-  // Handle player joining a game session
-  socket.on("joinGame", async (data) => {
-    const { gameSessionId, userId } = data;
+  // ✅ Inform new player about current game state
+  socket.emit("gameStatus", { status: app.get("currentGameStatus") });
 
-    // Add the player to the game session
-    const gameSession = await GameSession.findByPk(gameSessionId);
-    if (gameSession) {
-      gameSession.players.push(userId);
-      await gameSession.save();
-
-      socket.join(gameSessionId); // Join the game session room
-      io.to(gameSessionId).emit("playerJoined", {
-        userId,
-        players: gameSession.players,
-      });
-      console.log(`User ${userId} joined game session ${gameSessionId}`);
-    }
-  });
-
-  // Handle player placing a bet
-  socket.on("placeBet", async (data) => {
-    const { gameSessionId, userId, selectedNumbers, betAmount } = data;
-
-    // Save the bet to the database
-    const bet = await Bet.create({
-      user_id: userId,
-      game_session_id: gameSessionId,
-      selected_numbers: selectedNumbers,
-      bet_amount: betAmount,
-    });
-
-    // Broadcast the bet to all players in the game session
-    io.to(gameSessionId).emit("betPlaced", { userId, bet });
-  });
-
-  // Handle player disconnection
   socket.on("disconnect", () => {
-    console.log("A user disconnected:", socket.id);
+    console.log("Player disconnected:", socket.id);
   });
 });
 
-// Start the server
+// ✅ Root page sample to say Keno is running
+app.get("/", (req, res) => {
+  res.send("Keno is running!");
+});
+
+// ✅ Emit new game started event (Now controlled within the game logic)
+app.use("/api/game", require("./routes/gameRoutes"));
+app.use("/api/transactions", require("./routes/transactionRoutes"));
+app.use("/api/webhooks", require("./routes/chapaWebhook"));
+
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

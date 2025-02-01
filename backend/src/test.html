@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keno Game</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script> <!-- Include Socket.IO client -->
+    <script>
+        const socket = io("http://localhost:5000"); // Adjust the URL if necessary
+
+        socket.on("newRound", (data) => console.log("🟢 New round started:", data));
+        socket.on("drawNumber", (data) => console.log("🔵 Drawn number:", data));
+        socket.on("roundComplete", (data) => console.log("🏆 Round completed:", data));
+    </script>
+</head>
+<body>
+    <h1>Keno Game</h1>
+</body>
+</html>
