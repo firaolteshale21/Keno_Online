@@ -34,3 +34,8 @@ kenoGame.simulateBet(10); // Simulate a $10 bet
 // Adjust RTP for a promotional event
 kenoGame.setRTP(0.97); // Adjust RTP to 97%
 kenoGame.simulateBet(10); // Simulate a $10 bet during promotion
+
+
+
+
+

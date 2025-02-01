@@ -4,6 +4,7 @@ const { startGameRound } = require("../services/gameService");
 const { placeBet } = require("../services/betService");
 const { GameSetting } = require("../models");
 const gameState = require("../utils/gameState");
+const { GameAnalytics, NumberAnalytics } = require("../models");
 
 router.post("/start-round", (req, res) => {
   const io = req.app.get("io"); 
@@ -12,9 +13,6 @@ router.post("/start-round", (req, res) => {
 });
 
 
-/**
- * Player places a bet
- */
 router.post("/place-bet", async (req, res) => {
   try {
     const io = req.app.get("io");
@@ -22,6 +20,14 @@ router.post("/place-bet", async (req, res) => {
 
     if (!userId || !gameRoundId || !selectedNumbers || !amount) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // ✅ Check if the current game round is active
+    if (gameState.currentGameStatus === "drawing") {
+      return res.status(400).json({
+        error:
+          "Round Already Started Please Wait.",
+      });
     }
 
     const bet = await placeBet(
@@ -36,6 +42,7 @@ router.post("/place-bet", async (req, res) => {
     return res.status(400).json({ error: error.message });
   }
 });
+
 
 
 
@@ -62,16 +69,14 @@ router.put("/rtp", async (req, res) => {
   try {
     const { rtp } = req.body;
     if (rtp < 85)
-      return res.status(400).json({ error: "RTP must be fixed at 85%" });
+      return res.status(400).json({ error: "RTP cant not be less than 85%" });
 
     // ✅ Check if the current game round is active
-    if (gameState.currentGameStatus === "active") {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Cannot change RTP during an active game round. Try again after the round ends.",
-        });
+    if (gameState.currentGameStatus === "drawing") {
+      return res.status(400).json({
+        error:
+          "Cannot change RTP during an active game round. Try again after the round ends.",
+      });
     }
 
     await GameSetting.update({ rtp }, { where: {} });
@@ -110,6 +115,53 @@ router.put("/volatility", async (req, res) => {
   }
 });
 
+
+/**
+ * Get RTP & Financial Reports (Admin Only)
+ */
+router.get("/analytics", async (req, res) => {
+  try {
+    const analytics = await GameAnalytics.findAll({
+      order: [["createdAt", "DESC"]],
+      limit: 20,
+    });
+
+    // ✅ Calculate Average RTP Over Time
+    let totalBets = 0,
+      totalPayouts = 0,
+      totalRounds = analytics.length;
+    analytics.forEach((round) => {
+      totalBets += parseFloat(round.totalBets);
+      totalPayouts += parseFloat(round.totalPayouts);
+    });
+    const averageRTP = totalRounds > 0 ? (totalPayouts / totalBets) * 100 : 0;
+
+    res.status(200).json({
+      message: "RTP Analytics Report",
+      averageRTP: averageRTP.toFixed(2),
+      analytics,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Get Hot & Cold Numbers
+ */
+router.get("/number-trends", async (req, res) => {
+  try {
+    const hotNumbers = await NumberAnalytics.findAll({ order: [["drawnCount", "DESC"]], limit: 5 });
+    const coldNumbers = await NumberAnalytics.findAll({ order: [["drawnCount", "ASC"]], limit: 5 });
+
+    res.status(200).json({
+      hotNumbers,
+      coldNumbers,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;
 

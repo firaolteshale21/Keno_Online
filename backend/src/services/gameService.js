@@ -2,7 +2,8 @@ const { GameRound } = require("../models");
 const { v4: uuidv4 } = require("uuid");
 const gameState = require("../utils/gameState");
 const { generateKenoNumbers } = require("./rngService");
-const { processBets } = require("./payoutService");
+const { processBets,trackNumberAnalytics } = require("./payoutService");
+
 
 let activeGameRound = null;
 let gameInProgress = false; // Prevent multiple rounds from running
@@ -15,7 +16,7 @@ const startGameRound = async (io, app) => {
 
   gameInProgress = true;
   console.log("Starting new game round...");
-  gameState.currentGameStatus = "active"; // ✅ Mark round as active
+  gameState.currentGameStatus = "betting"; // ✅ Mark round as active
 
   activeGameRound = await GameRound.create({
     id: uuidv4(),
@@ -38,6 +39,7 @@ const startGameRound = async (io, app) => {
  */
 const drawNumbers = async (io, app, gameRoundId) => {
   console.log("Drawing numbers for game round:", gameRoundId);
+  gameState.currentGameStatus = "drawing"; //  
 
   let drawnNumbers = [];
   const numbers = await generateKenoNumbers(); // ✅ Use volatility-based RNG
@@ -73,7 +75,7 @@ const completeGameRound = async (io, app, drawnNumbers, gameRoundId) => {
 
   // Pass drawnNumbers to processBets
   await processBets(io, gameRound.id, drawnNumbers);
-
+  await trackNumberAnalytics(drawnNumbers);
 
   // ✅ Reset game state and start a new round after 10 seconds
   gameInProgress = false;
