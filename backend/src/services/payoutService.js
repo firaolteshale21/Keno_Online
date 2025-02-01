@@ -1,6 +1,6 @@
-const { Bet, User, Transaction, GameSetting } = require("../models");
+const { Bet, User, Transaction, GameSetting, GameAnalytics } = require("../models");
 const { v4: uuidv4 } = require("uuid");
-
+const { NumberAnalytics } = require("../models");
 /**
  * Get RTP from Database
  */
@@ -29,7 +29,7 @@ const getRTP = async () => {
     // ✅ Scale payouts dynamically based on RTP
     Object.keys(adjustedPaytable).forEach((numPicked) => {
       Object.keys(adjustedPaytable[numPicked]).forEach((matches) => {
-        adjustedPaytable[numPicked][matches] *= rtp;  //* We can make this line "rtp = 1 if we need STATIC PAYTABLE
+        adjustedPaytable[numPicked][matches] *= 1;  //* We can make this line "rtp = 1 if we need STATIC PAYTABLE
       });
     });
 
@@ -37,52 +37,94 @@ const getRTP = async () => {
   };
 
 /**
- * Process Bets & Ensure RTP-Adjusted Payouts are Stored
+ * Track RTP & Financial Metrics
+ */
+const trackRTP = async (gameRoundId, totalBets, totalPayouts) => {
+  const netProfit = totalBets - totalPayouts;
+  const actualRTP = totalBets > 0 ? (totalPayouts / totalBets) * 100 : 0;
+
+  await GameAnalytics.create({
+    id: uuidv4(), // ✅ Ensure ID is generated
+    gameRoundId,
+    totalBets: totalBets.toFixed(2),
+    totalPayouts: totalPayouts.toFixed(2),
+    netProfit: netProfit.toFixed(2),
+    actualRTP: actualRTP.toFixed(2),
+  });
+
+  return actualRTP;
+};
+
+
+/**
+ * Track Hot & Cold Numbers
+ */
+const trackNumberAnalytics = async (drawnNumbers) => {
+  for (let number of drawnNumbers) {
+    const existingRecord = await NumberAnalytics.findOne({ where: { number } });
+
+    if (existingRecord) {
+      await existingRecord.increment("drawnCount", { by: 1 });
+    } else {
+      await NumberAnalytics.create({ number, drawnCount: 1 });
+    }
+  }
+};
+
+/**
+ * Process Bets & Store RTP Analytics
  */
 const processBets = async (io, gameRoundId, drawnNumbers) => {
   try {
     const adjustedPaytable = await adjustPaytable();
     const bets = await Bet.findAll({ where: { gameRoundId } });
 
+    let totalBets = 0;
+    let totalPayouts = 0;
+
     for (const bet of bets) {
       const user = await User.findByPk(bet.userId);
       if (!user) continue;
 
-      // ✅ Ensure reliable number matching using a Set for fast lookup
+      totalBets += parseFloat(bet.betAmount) || 0;
       const drawnSet = new Set(drawnNumbers);
       const matches = bet.numbersChosen.filter((num) =>
         drawnSet.has(num)
       ).length;
-
       let payoutMultiplier =
         adjustedPaytable[bet.numbersChosen.length]?.[matches] || 0;
-      let payout = bet.betAmount * payoutMultiplier;
+      let payout = parseFloat(bet.betAmount * payoutMultiplier) || 0;
+
+      totalPayouts += payout;
 
       if (payout > 0) {
         await user.increment("balance", { by: payout });
 
         await Transaction.create({
-          id: uuidv4(),
           userId: user.id,
           betId: bet.id,
           type: "payout",
-          amount: payout,
+          amount: payout.toFixed(2),
           status: "completed",
         });
 
-        // ✅ Update the Bet with the Correct Winning Amount
         bet.status = "won";
-        bet.winningAmount = payout; // ✅ Store actual winning amount
+        bet.winningAmount = payout.toFixed(2);
       } else {
         bet.status = "lost";
-        bet.winningAmount = 0; // ✅ Ensure losing bets have 0 winningAmount
+        bet.winningAmount = 0;
       }
 
       await bet.save();
     }
 
+    // ✅ Ensure proper numeric formatting
+    const actualRTP = await trackRTP(gameRoundId, totalBets, totalPayouts);
+
     io.emit("roundComplete", {
       drawnNumbers,
+      actualRTP,
+      netProfit: totalBets - totalPayouts,
       message: "Round complete! Winners have been paid.",
     });
   } catch (error) {
@@ -90,4 +132,4 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
   }
 };
 
-module.exports = { processBets };
+module.exports = { processBets, trackNumberAnalytics };

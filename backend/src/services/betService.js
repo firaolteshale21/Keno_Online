@@ -7,6 +7,7 @@ const gameState = require("../utils/gameState");
  */
 const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
   try {
+    
     // ✅ Validate User Exists
     const user = await User.findByPk(userId);
     if (!user) throw new Error("User not found");
