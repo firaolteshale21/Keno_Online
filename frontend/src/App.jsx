@@ -1,24 +1,11 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import AppRouter from "./routes/AppRouter";
 
-const App = () => {
-  const token = localStorage.getItem("token");
-
+function App() {
   return (
-    <div>
-      <h1>Welcome to Keno Game</h1>
-      <nav>
-        {!token ? (
-          <>
-            <Link to="/register">Register</Link> |{" "}
-            <Link to="/login">Login</Link>
-          </>
-        ) : (
-          <Link to="/logout">Logout</Link>
-        )}
-      </nav>
+    <div className="min-h-screen bg-gray-900 text-white">
+      <AppRouter />
     </div>
   );
-};
+}
 
 export default App;

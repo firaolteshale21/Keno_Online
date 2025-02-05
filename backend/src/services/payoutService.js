@@ -79,8 +79,14 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
     const adjustedPaytable = await adjustPaytable();
     const bets = await Bet.findAll({ where: { gameRoundId } });
 
+    if (!bets || bets.length === 0) {
+      console.log("❌ No bets found for this round.");
+      return [];
+    }
+
     let totalBets = 0;
     let totalPayouts = 0;
+    let winners = [];
 
     for (const bet of bets) {
       const user = await User.findByPk(bet.userId);
@@ -96,8 +102,13 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
       let payout = parseFloat(bet.betAmount * payoutMultiplier) || 0;
 
       totalPayouts += payout;
-
       if (payout > 0) {
+        await user.increment("balance", { by: payout });
+
+        io.emit("balanceUpdated", {
+          userId: user.id,
+          newBalance: user.balance + payout,
+        });
         await user.increment("balance", { by: payout });
 
         await Transaction.create({
@@ -110,6 +121,10 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
 
         bet.status = "won";
         bet.winningAmount = payout.toFixed(2);
+
+        // ✅ Store winners
+        winners.push({ userId: user.id, winnings: payout });
+
       } else {
         bet.status = "lost";
         bet.winningAmount = 0;
@@ -117,7 +132,6 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
 
       await bet.save();
     }
-
     // ✅ Ensure proper numeric formatting
     const actualRTP = await trackRTP(gameRoundId, totalBets, totalPayouts);
 
@@ -127,8 +141,11 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
       netProfit: totalBets - totalPayouts,
       message: "Round complete! Winners have been paid.",
     });
+
+    return winners; // ✅ Return winners array
   } catch (error) {
     console.error("Error processing bets:", error);
+    return [];
   }
 };
 

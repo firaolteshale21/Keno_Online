@@ -7,7 +7,6 @@ const gameState = require("../utils/gameState");
  */
 const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
   try {
-    
     // ✅ Validate User Exists
     const user = await User.findByPk(userId);
     if (!user) throw new Error("User not found");
@@ -21,31 +20,25 @@ const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
       throw new Error("Betting is closed for this round.");
     }
 
-    // ✅ Validate Player Balance
-    if (user.balance < amount) throw new Error("Insufficient balance");
+    // ✅ Debugging Balance Issue
+    console.log("🔍 Checking balance for user:", userId);
+    console.log("💰 User balance before bet:", user.balance);
+    console.log("🎲 Bet amount:", amount);
 
-    // ✅ Validate Bet Amount (Set Limits if Needed)
-    if (amount < 1 || amount > 10000) {
-      throw new Error("Bet amount must be between 1 and 10,000.");
+    // ✅ Convert Balance to a Number (Fix Possible String Issue)
+    const userBalance = parseFloat(user.balance);
+    const betAmount = parseFloat(amount);
+
+    if (isNaN(userBalance) || isNaN(betAmount)) {
+      throw new Error("Balance or bet amount is not a valid number.");
     }
 
-    // ✅ Validate Selected Numbers (Must be between 1 and 8 numbers)
-    if (selectedNumbers.length < 1 || selectedNumbers.length > 8) {
-      throw new Error("You must select between 1 and 8 numbers.");
+    if (userBalance < betAmount) {
+      throw new Error("Insufficient balance");
     }
 
-    // ✅ Ensure Numbers are Unique
-    if (new Set(selectedNumbers).size !== selectedNumbers.length) {
-      throw new Error("Duplicate numbers are not allowed.");
-    }
-
-    // ✅ Ensure Numbers are Within 1-80
-    if (!selectedNumbers.every((num) => num >= 1 && num <= 80)) {
-      throw new Error("Numbers must be between 1 and 80.");
-    }
-
-    // ✅ Deduct Bet Amount
-    await user.decrement("balance", { by: amount });
+    // ✅ Deduct Bet Amount Correctly
+    await user.decrement("balance", { by: betAmount });
 
     // ✅ Store Bet in Database
     const bet = await Bet.create({
@@ -53,7 +46,7 @@ const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
       userId,
       gameRoundId,
       numbersChosen: selectedNumbers,
-      betAmount: amount,
+      betAmount: betAmount,
       status: "pending",
     });
 
@@ -63,9 +56,17 @@ const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
       userId,
       betId: bet.id,
       type: "bet",
-      amount,
+      amount: betAmount,
       status: "completed",
     });
+
+    // ✅ Fetch Updated Balance After Deduction
+    const updatedUser = await User.findByPk(userId);
+    console.log("✅ New user balance after bet:", updatedUser.balance);
+
+    // ✅ Emit updated balance to frontend
+    // ✅ Emit updated balance to frontend globally
+    io.emit("balanceUpdated", { userId, newBalance: updatedUser.balance });
 
     // ✅ Notify All Players of New Bet
     io.emit("betPlaced", {
@@ -76,6 +77,7 @@ const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
 
     return bet;
   } catch (error) {
+    console.error("❌ Error placing bet:", error.message);
     throw new Error(error.message);
   }
 };

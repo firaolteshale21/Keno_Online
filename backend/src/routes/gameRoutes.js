@@ -5,6 +5,9 @@ const { placeBet } = require("../services/betService");
 const { GameSetting } = require("../models");
 const gameState = require("../utils/gameState");
 const { GameAnalytics, NumberAnalytics } = require("../models");
+const { User } = require("../models");
+const authenticateUser = require("../middleware/authMiddleware"); // Import middleware
+
 
 router.post("/start-round", (req, res) => {
   const io = req.app.get("io"); 
@@ -12,39 +15,53 @@ router.post("/start-round", (req, res) => {
   res.status(200).json({ message: "Game round started" });
 });
 
-
-router.post("/place-bet", async (req, res) => {
+/**
+ * Player Bet
+ */
+// ✅ Secure Betting Endpoint
+router.post("/place-bet", authenticateUser, async (req, res) => {
   try {
     const io = req.app.get("io");
-    const { userId, gameRoundId, selectedNumbers, amount } = req.body;
+    const { gameRoundId, selectedNumbers, amount } = req.body;
+    const userId = req.userId; // ✅ Get user ID from JWT, preventing ID tampering
 
-    if (!userId || !gameRoundId || !selectedNumbers || !amount) {
+    // ✅ Validate required fields
+    if (!gameRoundId || !selectedNumbers || !amount) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // ✅ Check if the current game round is active
+    // ✅ Ensure game round is open for betting
     if (gameState.currentGameStatus === "drawing") {
-      return res.status(400).json({
-        error:
-          "Round Already Started Please Wait.",
-      });
+      return res.status(400).json({ error: "Round has already started. Please wait." });
     }
 
-    const bet = await placeBet(
-      io,
-      userId,
-      gameRoundId,
-      selectedNumbers,
-      amount
-    );
+    // ✅ Ensure selected numbers are valid
+    if (!Array.isArray(selectedNumbers) || selectedNumbers.length < 1 || selectedNumbers.length > 8) {
+      return res.status(400).json({ error: "You must select between 1 and 8 numbers." });
+    }
+
+    // ✅ Ensure numbers are between 1-80 and unique
+    if (!selectedNumbers.every((num) => num >= 1 && num <= 80)) {
+      return res.status(400).json({ error: "Numbers must be between 1 and 80." });
+    }
+    if (new Set(selectedNumbers).size !== selectedNumbers.length) {
+      return res.status(400).json({ error: "Duplicate numbers are not allowed." });
+    }
+
+    // ✅ Ensure bet amount is within limits
+    if (amount < 1 || amount > 10000) {
+      return res.status(400).json({ error: "Bet amount must be between 1 and 10,000." });
+    }
+
+    // ✅ Process bet securely
+    const bet = await placeBet(io, userId, gameRoundId, selectedNumbers, amount);
+
     return res.status(201).json({ message: "Bet placed successfully", bet });
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    console.error("Error placing bet:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
-
 
 /**
  * Get current RTP

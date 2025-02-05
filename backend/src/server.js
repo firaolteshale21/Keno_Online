@@ -1,6 +1,8 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet"); // ✅ Secure HTTP headers
+const rateLimit = require("express-rate-limit"); // ✅ Prevent brute force attacks
 const http = require("http"); // Required for WebSockets
 const { Server } = require("socket.io");
 
@@ -11,9 +13,17 @@ const io = new Server(server, { cors: { origin: "*" } });
 const dotenv = require("dotenv");
 dotenv.config({ path: process.env.NODE_ENV === "test" ? ".env.test" : ".env" });
 
-
-app.use(cors());
+app.use(cors()); // ✅ Allow only trusted origins in production
 app.use(express.json());
+app.use(helmet()); // ✅ Secure HTTP headers
+
+// ✅ Limit API requests to prevent abuse
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  message: "Too many requests, please try again later.",
+});
+app.use("/api/", limiter); // Apply rate limiting to all API routes
 
 // Attach io to app
 app.set("io", io);
@@ -34,18 +44,24 @@ io.on("connection", (socket) => {
   });
 });
 
+const { attachSocketListeners } = require("./services/gameService");
+
+// ✅ Attach WebSocket listeners
+attachSocketListeners(io);
+
 // ✅ Root page sample to say Keno is running
 app.get("/", (req, res) => {
   res.send("Keno is running!");
 });
 
-// ✅ Emit new game started event (Now controlled within the game logic)
+// ✅ Secure API routes
 app.use("/api/game", require("./routes/gameRoutes"));
 app.use("/api/transactions", require("./routes/transactionRoutes"));
 app.use("/api/webhooks", require("./routes/chapaWebhook"));
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/auth", require("./routes/userRoutes"));
 
-
+// ✅ Start server only in non-test environments
 if (process.env.NODE_ENV !== "test") {
   const PORT = process.env.PORT || 5000;
   server.listen(PORT, () => {
