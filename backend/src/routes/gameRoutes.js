@@ -27,39 +27,33 @@ router.post("/place-bet", authenticateUser, async (req, res) => {
 
     // ✅ Validate required fields
     if (!gameRoundId || !selectedNumbers || !amount) {
-      return res.status(400).json({ error: "Missing required fields" });
+      return res.status(400).json({ error: "All fields are required." });
     }
 
-    // ✅ Ensure game round is open for betting
-    if (gameState.currentGameStatus === "drawing") {
-      return res.status(400).json({ error: "Round has already started. Please wait." });
-    }
-
-    // ✅ Ensure selected numbers are valid
-    if (!Array.isArray(selectedNumbers) || selectedNumbers.length < 1 || selectedNumbers.length > 8) {
-      return res.status(400).json({ error: "You must select between 1 and 8 numbers." });
-    }
-
-    // ✅ Ensure numbers are between 1-80 and unique
-    if (!selectedNumbers.every((num) => num >= 1 && num <= 80)) {
-      return res.status(400).json({ error: "Numbers must be between 1 and 80." });
-    }
-    if (new Set(selectedNumbers).size !== selectedNumbers.length) {
-      return res.status(400).json({ error: "Duplicate numbers are not allowed." });
-    }
-
-    // ✅ Ensure bet amount is within limits
-    if (amount < 1 || amount > 10000) {
-      return res.status(400).json({ error: "Bet amount must be between 1 and 10,000." });
+    // ✅ Ensure game round is open for betting (STRICT CHECK)
+    if (gameState.currentGameStatus !== "betting") {
+      return res
+        .status(400)
+        .json({ error: "Betting is closed. Please wait for the next round." });
     }
 
     // ✅ Process bet securely
-    const bet = await placeBet(io, userId, gameRoundId, selectedNumbers, amount);
+    const bet = await placeBet(
+      io,
+      userId,
+      gameRoundId,
+      selectedNumbers,
+      amount
+    );
 
-    return res.status(201).json({ message: "Bet placed successfully", bet });
+    return res
+      .status(201)
+      .json({ message: "✅ Bet placed successfully!", bet });
   } catch (error) {
-    console.error("Error placing bet:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    console.error("❌ Error placing bet:", error.message);
+    return res
+      .status(500)
+      .json({ error: "Something went wrong. Please try again." });
   }
 });
 

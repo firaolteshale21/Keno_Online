@@ -64,7 +64,6 @@ const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
     const updatedUser = await User.findByPk(userId);
     console.log("✅ New user balance after bet:", updatedUser.balance);
 
-    // ✅ Emit updated balance to frontend
     // ✅ Emit updated balance to frontend globally
     io.emit("balanceUpdated", { userId, newBalance: updatedUser.balance });
 

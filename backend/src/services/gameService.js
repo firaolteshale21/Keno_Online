@@ -3,6 +3,8 @@ const { v4: uuidv4 } = require("uuid");
 const { generateKenoNumbers } = require("./rngService");
 const { processBets, trackNumberAnalytics } = require("./payoutService");
 const {User} = require("../models");
+const gameState = require("../utils/gameState")
+
 
 let activeGameRound = null;
 let gameInProgress = false;
@@ -40,12 +42,18 @@ const startGameRound = async (io, app) => {
 
     console.log("✅ Active gameRoundId:", activeGameRound.id); // Debugging
 
+    gameState.currentGameStatus = "betting"; // ✅ Set game state to betting
+
     io.emit("newRoundID", {
       message: "Place your bets!",
       timeLeft: 60,
       phase: "betting",
       gameRoundId: activeGameRound.id, // ✅ Send gameRoundId correctly
+      gameStatus: "betting", // ✅ Send game status
     });
+
+    // Emit game status update globally
+    io.emit("gameStatus", { status: "betting" });
 
     // Countdown for the betting phase
     for (let i = 60; i > 0; i--) {
@@ -59,7 +67,11 @@ const startGameRound = async (io, app) => {
     }
 
     // Start drawing numbers after the betting phase
-    setTimeout(() => drawNumbers(io, app, activeGameRound.id), 60000);
+    setTimeout(() => {
+      gameState.currentGameStatus = "drawing"; // ✅ Update game state to drawing
+      io.emit("gameStatus", { status: "drawing" }); // ✅ Notify frontend that drawing started
+      drawNumbers(io, app, activeGameRound.id);
+    }, 60000);
   }, 5000);
 };
 
@@ -178,6 +190,11 @@ const attachSocketListeners = (io) => {
     } else {
       console.warn("⚠️ No active game round available for new player.");
     }
+    // ✅ Send current game state to new players upon joining
+    socket.emit("currentGameState", {
+      gameStatus: gameState.currentGameStatus, // ✅ Send current game status
+      gameRoundId: activeGameRound ? activeGameRound.id : null, // ✅ Send active game round
+    });
   });
 };
 

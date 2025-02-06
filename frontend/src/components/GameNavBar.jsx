@@ -6,6 +6,7 @@ import socket from "../socket"; // ✅ Import WebSocket
 const GameNavBar = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null); // State for error handling
 
   // ✅ Function to fetch user balance
   const getUserDetails = async () => {
@@ -17,6 +18,7 @@ const GameNavBar = () => {
       setUser({ ...userData, balance: safeBalance });
     } catch (error) {
       console.error("Error fetching user details:", error);
+      setError("Failed to load user details."); // Set error message
     } finally {
       setLoading(false);
     }
@@ -24,7 +26,9 @@ const GameNavBar = () => {
 
   useEffect(() => {
     getUserDetails(); // ✅ Fetch balance initially
+  }, []);
 
+  useEffect(() => {
     const handleBalanceUpdate = (data) => {
       if (user && user.id === data.userId) {
         console.log("🔄 Balance updated:", data.newBalance);
@@ -41,8 +45,7 @@ const GameNavBar = () => {
     return () => {
       socket.off("balanceUpdated", handleBalanceUpdate);
     };
-  }, [user?.id]);
-
+  }, [user?.id]); // Keep this effect only for balance updates
 
   return (
     <div className="fixed top-0 left-0 w-full bg-gray-800 text-white shadow-md z-10 flex flex-col sm:flex-row items-center justify-between px-4 py-3">
@@ -53,6 +56,8 @@ const GameNavBar = () => {
       <div className="flex flex-wrap items-center gap-4 mt-3 sm:mt-0 sm:gap-6">
         {loading ? (
           <span>Loading...</span>
+        ) : error ? (
+          <span className="text-red-500">{error}</span>
         ) : user ? (
           <>
             <div className="text-white text-sm sm:text-lg font-semibold">
