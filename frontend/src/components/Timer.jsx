@@ -26,7 +26,7 @@ const Timer = () => {
 
   return (
     <div
-      className={`text-center text-xl font-bold text-white ${color} px-1.5 py-2 rounded-md mb-2`}
+      className={`text-center text-lg font-bold text-white ${color} px-1.5 py-1 rounded-md mb-1 mt-4`}
     >
       {statusMessage} {timeLeft !== null ? `${timeLeft}` : ""}
     </div>

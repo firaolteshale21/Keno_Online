@@ -1,5 +1,6 @@
 const { Bet, User, Transaction, GameRound } = require("../models");
 const { v4: uuidv4 } = require("uuid");
+const { adjustPaytable } = require("./payoutService"); // ✅ Import paytable function
 const gameState = require("../utils/gameState");
 
 /**
@@ -20,12 +21,10 @@ const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
       throw new Error("Betting is closed for this round.");
     }
 
-    // ✅ Debugging Balance Issue
     console.log("🔍 Checking balance for user:", userId);
     console.log("💰 User balance before bet:", user.balance);
     console.log("🎲 Bet amount:", amount);
 
-    // ✅ Convert Balance to a Number (Fix Possible String Issue)
     const userBalance = parseFloat(user.balance);
     const betAmount = parseFloat(amount);
 
@@ -39,6 +38,19 @@ const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
 
     // ✅ Deduct Bet Amount Correctly
     await user.decrement("balance", { by: betAmount });
+
+    // ✅ Get Adjusted Paytable for Possible Winnings Calculation
+    const adjustedPaytable = await adjustPaytable();
+
+    // ✅ Calculate Possible Winnings Using the Paytable
+    const numSelected = selectedNumbers.length;
+    let maxMultiplier = 0;
+
+    if (adjustedPaytable[numSelected]) {
+      maxMultiplier = Math.max(...Object.values(adjustedPaytable[numSelected]));
+    }
+
+    const possibleWinningAmount = betAmount * maxMultiplier;
 
     // ✅ Store Bet in Database
     const bet = await Bet.create({
@@ -67,11 +79,12 @@ const placeBet = async (io, userId, gameRoundId, selectedNumbers, amount) => {
     // ✅ Emit updated balance to frontend globally
     io.emit("balanceUpdated", { userId, newBalance: updatedUser.balance });
 
-    // ✅ Notify All Players of New Bet
-    io.emit("betPlaced", {
-      userId,
+    // ✅ Emit new bet event with correct possible winnings
+    io.emit("newBetPlaced", {
       betId: bet.id,
-      message: "A player has placed a bet!",
+      selectedNumbers,
+      possibleWinningAmount,
+      actualWinningAmount: 0, // Initially 0
     });
 
     return bet;

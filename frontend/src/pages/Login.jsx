@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { loginUser } from "../services/api"; // Import login API
+import { loginUser } from "../services/api"; // ✅ Import login API
+import { useUser } from "../context/UserContext"; // ✅ Import User Context
+import { useNavigate } from "react-router-dom"; // ✅ Navigation
 
 const Login = () => {
   const [formData, setFormData] = useState({ phoneNumber: "", password: "" });
-  const [error, setError] = useState(""); // Handle error messages
+  const [error, setError] = useState(""); // ✅ Handle error messages
+  const { setUser } = useUser(); // ✅ Get setUser from User Context
+  const navigate = useNavigate(); // ✅ Hook for navigation
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -12,17 +16,20 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // Clear previous errors
+    setError(""); // ✅ Clear previous errors
 
     try {
       const data = await loginUser(formData.phoneNumber, formData.password);
-      console.log("Login Successful:", data);
+      console.log("✅ Login Successful:", data);
 
-      // ✅ Store token in local storage (or use state management)
+      // ✅ Store token in local storage
       localStorage.setItem("token", data.token);
 
-      // ✅ Redirect user (Example: Navigate to game page)
-      window.location.href = "/game";
+      // ✅ Update global user state
+      setUser(data.user);
+
+      // ✅ Redirect user to game page
+      navigate("/game");
     } catch (errorMessage) {
       setError(errorMessage);
     }

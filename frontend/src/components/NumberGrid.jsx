@@ -1,17 +1,16 @@
-import { useState } from "react";
+import { useGame } from "../context/GameContext"; // ✅ Use Game Context
 
-const NumberGrid = ({ onSelect }) => {
-  const [selectedNumbers, setSelectedNumbers] = useState([]);
+const NumberGrid = () => {
+  const { selectedNumbers, setSelectedNumbers } = useGame(); // ✅ Get from context
 
   const toggleNumber = (num) => {
     let updatedNumbers = [...selectedNumbers];
     if (updatedNumbers.includes(num)) {
       updatedNumbers = updatedNumbers.filter((n) => n !== num);
-    } else if (updatedNumbers.length < 10) {
+    } else if (updatedNumbers.length < 8) {
       updatedNumbers.push(num);
     }
-    setSelectedNumbers(updatedNumbers);
-    onSelect(updatedNumbers);
+    setSelectedNumbers(updatedNumbers); // ✅ Update context
   };
 
   return (

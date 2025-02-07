@@ -1,6 +1,10 @@
 import { io } from "socket.io-client";
 
-// ✅ Connect to the backend WebSocket server
-const socket = io("http://localhost:5000", { transports: ["websocket"] });
+const socket = io("http://localhost:5000", {
+  transports: ["websocket"],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 2000,
+});
 
 export default socket;

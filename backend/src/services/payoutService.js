@@ -110,6 +110,10 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
           newBalance: user.balance + payout,
         });
         await user.increment("balance", { by: payout });
+        io.emit("betResultUpdated", {
+          betId: bet.id,
+          actualWinningAmount: payout.toFixed(2),
+        });
 
         await Transaction.create({
           userId: user.id,
@@ -149,4 +153,5 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
   }
 };
 
-module.exports = { processBets, trackNumberAnalytics };
+module.exports = { processBets, trackNumberAnalytics, adjustPaytable };
+

@@ -39,53 +39,48 @@ export const verifyOTP = async (phoneNumber, otpCode) => {
   }
 };
 
-// Fetch user data (protected route)
+
+// ✅ Automatically add Authorization token to every request
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ✅ Fetch user data (protected route)
 export const fetchUserData = async () => {
   try {
-    const token = localStorage.getItem("token");
-    if (!token) throw new Error("No authentication token found");
+    const response = await api.get("auth/me");
 
-    const response = await api.get("auth/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    // Check if the response contains data
-    if (response && response.data) {
-      // Ensure balance is a number
-      if (typeof response.data.balance === "string") {
-        response.data.balance = parseFloat(response.data.balance);
-      }
-      return response.data;
-    } else {
-      throw new Error("No user data found");
+    // ✅ Ensure balance is a valid number
+    if (response.data && response.data.balance !== undefined) {
+      response.data.balance = parseFloat(response.data.balance) || 0;
     }
+
+    return response.data;
   } catch (error) {
-    console.error("Error fetching user data:", error); // Log the error for debugging
     throw error.response?.data?.error || "Failed to fetch user data";
-  }  
+  }
 };
 
-// ✅ Function to place a bet
-export const placeBet = async (token, gameRoundId, selectedNumbers, amount) => {
-  if (!token) {
-    throw new Error("User is not authenticated."); // ✅ Prevents API call without a token
-  }
 
+// ✅ Place a bet
+export const placeBet = async (gameRoundId, selectedNumbers, amount) => {
   try {
-    const response = await axios.post(
-      `${API_BASE_URL}/game/place-bet`,
-      { gameRoundId, selectedNumbers, amount },
-      {
-        headers: { Authorization: `Bearer ${token}` }, // ✅ Sends token in request headers
-      }
-    );
+    const response = await api.post("/game/place-bet", {
+      gameRoundId,
+      selectedNumbers,
+      amount,
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data?.error || "Bet placement failed.";
   }
 };
-
-
-
 
 export default api;
