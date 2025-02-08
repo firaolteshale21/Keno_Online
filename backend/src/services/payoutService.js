@@ -1,6 +1,13 @@
-const { Bet, User, Transaction, GameSetting, GameAnalytics } = require("../models");
+const {
+  Bet,
+  User,
+  Transaction,
+  GameSetting,
+  GameAnalytics,
+} = require("../models");
 const { v4: uuidv4 } = require("uuid");
 const { NumberAnalytics } = require("../models");
+
 /**
  * Get RTP from Database
  */
@@ -12,29 +19,29 @@ const getRTP = async () => {
 /**
  * Adjust Paytable Based on RTP
  */
-  const adjustPaytable = async () => {
-    const rtp = await getRTP();
+const adjustPaytable = async () => {
+  const rtp = await getRTP();
 
-    let adjustedPaytable = {
-      1: { 1: 3 },
-      2: { 1: 1, 2: 5 },
-      3: { 2: 2, 3: 10 },
-      4: { 2: 1, 3: 5, 4: 20 },
-      5: { 2: 1, 3: 3, 4: 15, 5: 50 },
-      6: { 3: 2, 4: 10, 5: 50, 6: 300 },
-      7: { 3: 3, 4: 15, 5: 150, 6: 750, 7: 1500 },
-      8: { 4: 4, 5: 20, 6: 100, 7: 1000, 8: 3000 },
-    };
-
-    // ✅ Scale payouts dynamically based on RTP
-    Object.keys(adjustedPaytable).forEach((numPicked) => {
-      Object.keys(adjustedPaytable[numPicked]).forEach((matches) => {
-        adjustedPaytable[numPicked][matches] *= 1;  //* We can make this line "rtp = 1 if we need STATIC PAYTABLE
-      });
-    });
-
-    return adjustedPaytable;
+  let adjustedPaytable = {
+    1: { 1: 3 },
+    2: { 1: 1, 2: 5 },
+    3: { 2: 2, 3: 10 },
+    4: { 2: 1, 3: 5, 4: 20 },
+    5: { 2: 1, 3: 3, 4: 15, 5: 50 },
+    6: { 3: 2, 4: 10, 5: 50, 6: 300 },
+    7: { 3: 3, 4: 15, 5: 150, 6: 750, 7: 1500 },
+    8: { 4: 4, 5: 20, 6: 100, 7: 1000, 8: 3000 },
   };
+
+  // ✅ Scale payouts dynamically based on RTP
+  Object.keys(adjustedPaytable).forEach((numPicked) => {
+    Object.keys(adjustedPaytable[numPicked]).forEach((matches) => {
+      adjustedPaytable[numPicked][matches] *= 1;
+    });
+  });
+
+  return adjustedPaytable;
+};
 
 /**
  * Track RTP & Financial Metrics
@@ -44,7 +51,7 @@ const trackRTP = async (gameRoundId, totalBets, totalPayouts) => {
   const actualRTP = totalBets > 0 ? (totalPayouts / totalBets) * 100 : 0;
 
   await GameAnalytics.create({
-    id: uuidv4(), // ✅ Ensure ID is generated
+    id: uuidv4(),
     gameRoundId,
     totalBets: totalBets.toFixed(2),
     totalPayouts: totalPayouts.toFixed(2),
@@ -54,7 +61,6 @@ const trackRTP = async (gameRoundId, totalBets, totalPayouts) => {
 
   return actualRTP;
 };
-
 
 /**
  * Track Hot & Cold Numbers
@@ -102,14 +108,15 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
       let payout = parseFloat(bet.betAmount * payoutMultiplier) || 0;
 
       totalPayouts += payout;
+
       if (payout > 0) {
         await user.increment("balance", { by: payout });
 
         io.emit("balanceUpdated", {
           userId: user.id,
-          newBalance: user.balance + payout,
+          newBalance: user.balance + payout, // ✅ Send correct balance only once
         });
-        await user.increment("balance", { by: payout });
+
         io.emit("betResultUpdated", {
           betId: bet.id,
           actualWinningAmount: payout.toFixed(2),
@@ -128,7 +135,6 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
 
         // ✅ Store winners
         winners.push({ userId: user.id, winnings: payout });
-
       } else {
         bet.status = "lost";
         bet.winningAmount = 0;
@@ -136,6 +142,7 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
 
       await bet.save();
     }
+
     // ✅ Ensure proper numeric formatting
     const actualRTP = await trackRTP(gameRoundId, totalBets, totalPayouts);
 
@@ -146,7 +153,7 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
       message: "Round complete! Winners have been paid.",
     });
 
-    return winners; // ✅ Return winners array
+    return winners;
   } catch (error) {
     console.error("Error processing bets:", error);
     return [];
@@ -154,4 +161,3 @@ const processBets = async (io, gameRoundId, drawnNumbers) => {
 };
 
 module.exports = { processBets, trackNumberAnalytics, adjustPaytable };
-

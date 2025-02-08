@@ -1,8 +1,8 @@
-import { useUser } from "../context/UserContext"; // ✅ Fetch User Context
+import { useUser } from "../context/UserContext"; // ✅ Use UserContext
 import { FaEnvelope, FaUserCircle } from "react-icons/fa";
 
 const GameNavBar = () => {
-  const { user, loading } = useUser(); // ✅ Get user & balance directly from UserContext
+  const { user, loading } = useUser(); // ✅ Fetch balance from context
 
   return (
     <div className="fixed top-0 left-0 w-full bg-gray-800 text-white shadow-md z-10 flex flex-col sm:flex-row items-center justify-between px-4 py-3">
@@ -16,7 +16,7 @@ const GameNavBar = () => {
             <div className="text-white text-sm sm:text-lg font-semibold">
               ETB{" "}
               <span className="text-yellow-400">
-                {user.balance?.toFixed(2) || "0.00"} {/* ✅ Always a number */}
+                {user.balance?.toFixed(2) ?? "0.00"} {/* ✅ Always a number */}
               </span>
             </div>
             <button className="px-2 py-1 bg-green-600 text-white font-bold rounded hover:bg-green-500">

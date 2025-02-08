@@ -11,7 +11,7 @@ export const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ Function to fetch user data
+  // ✅ Function to fetch user data ONCE
   const getUserDetails = async () => {
     if (!token) {
       console.warn("No authentication token found.");
@@ -20,7 +20,7 @@ export const UserProvider = ({ children }) => {
     }
 
     try {
-      const userData = await fetchUserData(token);
+      const userData = await fetchUserData();
       setUser(userData);
     } catch (err) {
       console.error("Failed to fetch user data:", err);
@@ -32,12 +32,12 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // ✅ Fetch user data when the component mounts or token changes
+  // ✅ Fetch user data once when the component mounts
   useEffect(() => {
     getUserDetails();
-  }, [token]);
+  }, []);
 
-  // ✅ Listen for balance updates globally
+  // ✅ Listen for balance updates ONLY from WebSockets
   useEffect(() => {
     if (!user?.id) return;
 

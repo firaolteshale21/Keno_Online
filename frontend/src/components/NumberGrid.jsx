@@ -1,9 +1,11 @@
 import { useGame } from "../context/GameContext"; // ✅ Use Game Context
 
 const NumberGrid = () => {
-  const { selectedNumbers, setSelectedNumbers } = useGame(); // ✅ Get from context
+  const { selectedNumbers, setSelectedNumbers, gameStatus } = useGame(); // ✅ Get game status
 
   const toggleNumber = (num) => {
+    if (gameStatus !== "betting") return; // ✅ Prevent selection during drawing phase
+
     let updatedNumbers = [...selectedNumbers];
     if (updatedNumbers.includes(num)) {
       updatedNumbers = updatedNumbers.filter((n) => n !== num);
@@ -23,8 +25,11 @@ const NumberGrid = () => {
               selectedNumbers.includes(num)
                 ? "bg-blue-500 text-white"
                 : "bg-gray-700 text-gray-200"
+            } ${
+              gameStatus !== "betting" ? "opacity-50 cursor-not-allowed" : ""
             }`}
             onClick={() => toggleNumber(num)}
+            disabled={gameStatus !== "betting"} // ✅ Disable during drawing phase
           >
             {num}
           </button>

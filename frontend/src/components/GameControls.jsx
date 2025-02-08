@@ -5,7 +5,8 @@ import { useGame } from "../context/GameContext";
 import { useUser } from "../context/UserContext";
 
 const GameControls = () => {
-  const { gameRoundId, gameStatus, selectedNumbers } = useGame();
+  const { gameRoundId, gameStatus, selectedNumbers, setSelectedNumbers } =
+    useGame(); // ✅ Ensure selectedNumbers can be reset
   const { user, token } = useUser();
   const [betAmount, setBetAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -90,6 +91,9 @@ const GameControls = () => {
         ),
         actualWinningAmount: 0,
       });
+
+      // ✅ Clear selected numbers after placing bet
+      setSelectedNumbers([]);
 
       setMessage({ text: response.message, type: "success" });
       setBetAmount("");
