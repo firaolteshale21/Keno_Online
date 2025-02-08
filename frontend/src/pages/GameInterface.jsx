@@ -59,9 +59,9 @@ function GameInterface() {
         </main>
 
         {/* ✅ Right Sidebar - Placeholder for Future Features */}
-        <aside className="hidden md:flex w-1/5 bg-gray-800 p-3 overflow-y-auto">
+        <aside className="hidden md:flex w-1/4 bg-gray-800 p-3 overflow-y-auto">
           <div className="text-center text-gray-400">
-            <UserBetsTracker />
+            <UserBetsTracker drawnNumbers={drawnNumbers} />
             <p>Statistics & Leaderboard (Coming Soon)</p>
           </div>
         </aside>

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import socket from "../socket";
 
-const UserBetsTracker = () => {
+const UserBetsTracker = ({ drawnNumbers }) => {
   const [bets, setBets] = useState([]);
   const [totalPossibleWinnings, setTotalPossibleWinnings] = useState(0);
-  const [totalActualWinnings, setTotalActualWinnings] = useState(null); // Null initially
-  const [showFinalTotal, setShowFinalTotal] = useState(false); // ✅ Control visibility
+  const [totalActualWinnings, setTotalActualWinnings] = useState(null);
+  const [showFinalTotal, setShowFinalTotal] = useState(false);
+  const [highlightedBets, setHighlightedBets] = useState(new Set());
 
   useEffect(() => {
     socket.on("newBetPlaced", (betData) => {
@@ -26,18 +27,17 @@ const UserBetsTracker = () => {
     });
 
     socket.on("roundComplete", () => {
-      console.log("🔄 Round completed, calculating total actual winnings...");
       const newTotal = bets.reduce(
         (sum, bet) => sum + parseFloat(bet.actualWinningAmount || 0),
         0
       );
 
       setTotalActualWinnings(newTotal);
-      setShowFinalTotal(true); // ✅ Show final total for 5 seconds
+      setShowFinalTotal(true);
+      highlightWinningNumbers();
 
-      // ✅ Reset actual winnings display after 5 seconds
       setTimeout(() => {
-        setShowFinalTotal(false);
+        setBets([]); // Clear the table after 5 seconds
       }, 5000);
     });
 
@@ -48,7 +48,24 @@ const UserBetsTracker = () => {
     };
   }, [bets]);
 
-  // ✅ Calculate total possible winnings dynamically before round completion
+  const highlightWinningNumbers = () => {
+    const winningNumbers = new Set(drawnNumbers);
+
+    bets.forEach((bet) => {
+      bet.selectedNumbers.forEach((num) => {
+        if (winningNumbers.has(num)) {
+          highlightedBets.add(bet.betId);
+        }
+      });
+    });
+
+    setHighlightedBets(new Set(highlightedBets));
+
+    setTimeout(() => {
+      setHighlightedBets(new Set()); // Clear highlights after 5 seconds
+    }, 5000);
+  };
+
   useEffect(() => {
     setTotalPossibleWinnings(
       bets.reduce(
@@ -72,7 +89,7 @@ const UserBetsTracker = () => {
                 No.
               </th>
               <th className="border border-gray-600 px-2 py-1 text-sm whitespace-nowrap">
-                CN
+                Chosen Number
               </th>
               <th className="border border-gray-600 px-2 py-1 text-sm whitespace-nowrap">
                 PW
@@ -85,16 +102,34 @@ const UserBetsTracker = () => {
           <tbody>
             {bets.map((bet, index) => (
               <tr key={bet.betId} className="odd:bg-gray-900 even:bg-gray-800">
-                <td className="border border-gray-600 px-2 py-1 text-center text-sm whitespace-nowrap">
+                <td className="border border-gray-600 px-2 py-1 text-center text-sm">
                   {index + 1}
                 </td>
-                <td className="border border-gray-600 px-2 py-1 text-center text-sm whitespace-nowrap">
-                  {bet.selectedNumbers.join(", ")}
+
+                {/* Grid Layout for Chosen Numbers */}
+                <td className="border border-gray-600 px-2 py-1 text-center">
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                    {bet.selectedNumbers.map((num) => (
+                      <div
+                        key={num}
+                        className={`w-6 h-6 sm:w-6 sm:h-6 flex items-center justify-center rounded-md text-sm font-bold ${
+                          highlightedBets.has(bet.betId) &&
+                          drawnNumbers.includes(num)
+                            ? "bg-green-500 text-white" // Highlight in green
+                            : "bg-gray-700 text-gray-200"
+                        }`}
+                      >
+                        {num}
+                      </div>
+                    ))}
+                  </div>
                 </td>
-                <td className="border border-gray-600 px-2 py-1 text-center text-sm whitespace-nowrap">
+
+                <td className="border border-gray-600 px-2 py-1 text-center text-sm">
                   ${bet.possibleWinningAmount.toFixed(2)}
                 </td>
-                <td className="border border-gray-600 px-2 py-1 text-center text-sm text-yellow-400 whitespace-nowrap">
+
+                <td className="border border-gray-600 px-2 py-1 text-center text-sm text-yellow-400">
                   {bet.actualWinningAmount > 0
                     ? `$${bet.actualWinningAmount}`
                     : "-"}
