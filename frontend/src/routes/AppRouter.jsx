@@ -9,19 +9,20 @@ import { GameProvider } from "../context/GameContext"; // ✅ Import GameProvide
 
 const AppRouter = () => {
   return (
-    <UserProvider>
-      <GameProvider>
-        <Router>
-          <Navbar />
-          <Routes>
-            <Route path="/register" element={<Register />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/game" element={<GameInterface />} />
-            <Route path="/transactions" element={<Transactions />} />
-          </Routes>
-        </Router>
-      </GameProvider>
-    </UserProvider>
+   
+      <UserProvider>
+        <GameProvider>
+          <Router>
+            <Navbar />
+            <Routes>
+              <Route path="/register" element={<Register />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/game" element={<GameInterface />} />
+              <Route path="/transactions" element={<Transactions />} />
+            </Routes>
+          </Router>
+        </GameProvider>
+      </UserProvider>
   );
 };
 

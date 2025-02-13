@@ -31,13 +31,12 @@ const GameControls = () => {
     return betAmount * maxMultiplier;
   };
 
-  const handleBet = async () => {
-    console.log("Sending bet request with:", {
-      gameRoundId,
-      selectedNumbers,
-      betAmount,
-    });
+  // ✅ Handle Quick Bet Button Click
+  const handleQuickBet = (amount) => {
+    setBetAmount(amount);
+  };
 
+  const handleBet = async () => {
     if (!token) {
       setMessage({
         text: "User is not authenticated. Please log in.",
@@ -47,21 +46,20 @@ const GameControls = () => {
     }
 
     if (!betAmount || betAmount <= 0) {
-      setMessage({ text: "Please enter a valid bet amount.", type: "error" });
-      setTimeout(() => setMessage(""), 2000);
+      setMessage({ text: "Enter a valid bet amount.", type: "error" });
       return;
     }
+
     if (!selectedNumbers || selectedNumbers.length === 0) {
-      setMessage({ text: "Please select at least one number.", type: "error" });
-      setTimeout(() => setMessage(""), 2000);
+      setMessage({ text: "Select at least one number.", type: "error" });
       return;
     }
+
     if (gameStatus !== "betting") {
       setMessage({
         text: "Betting is closed. Please wait for the next round.",
         type: "error",
       });
-      setTimeout(() => setMessage(""), 3000);
       return;
     }
 
@@ -71,7 +69,7 @@ const GameControls = () => {
 
       const response = await placeBet(gameRoundId, selectedNumbers, betAmount);
 
-      console.log("✅ Emitting newBetPlaced event:", {
+      const newBet = {
         betId: response.bet.id,
         selectedNumbers,
         possibleWinningAmount: calculatePossibleWinnings(
@@ -79,63 +77,76 @@ const GameControls = () => {
           betAmount
         ),
         actualWinningAmount: 0,
-      });
+      };
 
       // ✅ Emit new bet event to WebSocket
-      socket.emit("newBetPlaced", {
-        betId: response.bet.id,
-        selectedNumbers,
-        possibleWinningAmount: calculatePossibleWinnings(
-          selectedNumbers.length,
-          betAmount
-        ),
-        actualWinningAmount: 0,
-      });
+      socket.emit("newBetPlaced", newBet);
+
+      // ✅ Persist bet to localStorage using gameRoundId as key
+      const savedBets =
+        JSON.parse(localStorage.getItem(`userBets_${gameRoundId}`)) || [];
+      localStorage.setItem(
+        `userBets_${gameRoundId}`,
+        JSON.stringify([...savedBets, newBet])
+      );
 
       // ✅ Clear selected numbers after placing bet
       setSelectedNumbers([]);
 
       setMessage({ text: response.message, type: "success" });
       setBetAmount("");
-      setTimeout(() => setMessage(""), 3000);
     } catch (error) {
       setMessage({ text: String(error), type: "error" });
-      setTimeout(() => setMessage(""), 3000);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center mt-2">
-      <div className="flex flex-col items-center w-full max-w-4xl px-4">
+    <div className="flex justify-center mt-2 w-full">
+      <div className="flex flex-col items-center w-full max-w-md sm:max-w-4xl px-4">
         {message && (
           <p
-            className={`text-center p-2 rounded-md mb-2 ${
-              message.type === "error" ? "bg-red-500" : "bg-green-500"
+            className={`text-center p-2 rounded-md mb-2 transition-all ${
+              message.type === "error"
+                ? "bg-red-500 text-white"
+                : "bg-green-500 text-black"
             }`}
           >
             {message.text}
           </p>
         )}
 
-        <div className="flex flex-col sm:flex-row items-center mb-3 w-full">
+        <div className="flex flex-col sm:flex-row items-center mb-3 w-full justify-center">
           <input
             id="betAmount"
             type="number"
             value={betAmount}
             onChange={(e) => setBetAmount(e.target.value)}
-            className="w-full sm:w-32 px-2 py-2 border border-gray-600 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+            className="w-full sm:w-36 px-3 py-2 border border-gray-600 rounded bg-gray-800 text-white text-center focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all"
             placeholder="Enter amount"
             disabled={gameStatus !== "betting"}
           />
           <button
             onClick={handleBet}
             disabled={loading || gameStatus !== "betting"}
-            className="w-full sm:w-auto px-3 py-1.5 font-bold rounded-lg h-10 mt-2 sm:mt-0 sm:ml-2 bg-green-600 hover:bg-green-700 text-white"
+            className="w-full sm:w-auto px-4 py-2 font-bold rounded-lg h-10 mt-2 sm:mt-0 sm:ml-2 bg-green-600 hover:bg-green-700 text-white transition-all disabled:bg-gray-500 disabled:cursor-not-allowed"
           >
             {loading ? "Processing..." : "BET"}
           </button>
+        </div>
+
+        {/* ✅ Quick Bet Buttons */}
+        <div className="flex gap-2 mt-2">
+          {[10, 50, 200, 500].map((amount) => (
+            <button
+              key={amount}
+              onClick={() => handleQuickBet(amount)}
+              className="px-3 py-1 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-500 transition-all"
+            >
+              {amount}
+            </button>
+          ))}
         </div>
       </div>
     </div>

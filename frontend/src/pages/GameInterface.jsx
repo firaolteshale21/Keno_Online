@@ -4,67 +4,104 @@ import Timer from "../components/Timer";
 import DrawResult from "../components/DrawResult";
 import GameControls from "../components/GameControls";
 import GameNavBar from "../components/GameNavBar";
-import UserBetsTracker from "../components/UserBetsTracker";
-import { useGame } from "../context/GameContext"; // ✅ Import Game Context
-import { useUser } from "../context/UserContext"; // ✅ Import User Context
+import GameTabs from "../components/GameTabs";
+import RightSectionTabs from "../components/RightSectionTabs";
+import LeftSectionTabs from "../components/LeftSectionTabs";
+import { useGame } from "../context/GameContext";
+import { useUser } from "../context/UserContext";
 import socket from "../socket";
 
 function GameInterface() {
-  const { gameRoundId, gameStatus } = useGame(); // ✅ Fetch game state from context
-  const { user } = useUser(); // ✅ Fetch user data from context
+  const { gameRoundId, gameStatus } = useGame();
+  const { user } = useUser();
   const [selectedNumbers, setSelectedNumbers] = useState([]);
   const [drawnNumbers, setDrawnNumbers] = useState([]);
-  const [phaseMessage, setPhaseMessage] = useState("Place your bets!");
+  const [phaseMessage, setPhaseMessage] = useState("Choose Up to 8 Numbers!");
 
   useEffect(() => {
-    // ✅ Listen for number draws
-    socket.on("drawNumber", (data) => {
+    const handleDrawNumber = (data) => {
       setDrawnNumbers(data.drawnSoFar);
       setPhaseMessage(data.message);
-    });
+    };
 
-    // ✅ Listen for round completion
-    socket.on("roundComplete", () => {
+    const handleRoundComplete = () => {
       setPhaseMessage("Round Complete!");
-    });
 
-    // ✅ Cleanup socket listeners
+      // ✅ Clear numbers after 5 seconds
+      setTimeout(() => {
+        setDrawnNumbers([]);
+        setPhaseMessage("Choose Up to 8 Numbers!");
+      }, 5000);
+    };
+
+    const handleCurrentGameState = (data) => {
+      if (data.drawnNumbers && data.drawnNumbers.length > 0) {
+        setDrawnNumbers(data.drawnNumbers);
+      }
+    };
+    const handleNewRoundID = (data) => {
+      setPhaseMessage(data.message);
+      localStorage.setItem("gameRoundId", data.gameRoundId);
+      localStorage.removeItem("userBets"); // ✅ Clear old bets when a new round starts
+    };
+
+
+    socket.on("drawNumber", handleDrawNumber);
+    socket.on("roundComplete", handleRoundComplete);
+    socket.on("currentGameState", handleCurrentGameState);
+    socket.on("newRoundID", handleNewRoundID);
+
     return () => {
-      socket.off("drawNumber");
-      socket.off("roundComplete");
+      socket.off("drawNumber", handleDrawNumber);
+      socket.off("roundComplete", handleRoundComplete);
+      socket.off("currentGameState", handleCurrentGameState);
+      socket.off("newRoundID", handleNewRoundID);
+    };
+  }, []);
+  useEffect(() => {
+    const handleNewRoundID = (data) => {
+      setPhaseMessage(data.message);
+      localStorage.setItem("gameRoundId", data.gameRoundId);
+      localStorage.removeItem("userBets"); // ✅ Clear old bets when a new round starts
+    };
+
+    socket.on("newRoundID", handleNewRoundID);
+
+    return () => {
+      socket.off("newRoundID", handleNewRoundID);
     };
   }, []);
 
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-900 text-white">
-      {/* ✅ Top Navigation Bar */}
+    <div className="flex flex-col min-h-screen bg-gray-900 text-white overflow-hidden">
       <GameNavBar />
 
       {/* ✅ Main Layout Grid */}
-      <div className="flex flex-grow w-full">
-        {/* ✅ Left Sidebar - Player Bets */}
-        <aside className="hidden md:flex w-1/5 bg-gray-800 p-3 overflow-y-auto"></aside>
+      <div className="flex flex-grow w-full max-h-screen">
+        <aside className="hidden md:flex w-1/4 bg-gray-800 p-3 overflow-y-auto border-r border-gray-700">
+          <LeftSectionTabs />
+        </aside>
 
-        {/* ✅ Center Section */}
-        <main className="flex flex-col flex-grow items-center max-w-4xl w-full p-3">
-          <DrawResult drawnNumbers={drawnNumbers} />
+        <main className="flex flex-col flex-grow items-center justify-center p-4 space-y-4">
           <Timer />
+          <DrawResult drawnNumbers={drawnNumbers} phaseMessage={phaseMessage} />
           <NumberGrid onSelect={setSelectedNumbers} />
           <GameControls
             gameRoundId={gameRoundId}
             selectedNumbers={selectedNumbers}
-            userToken={user?.token} // ✅ Ensure token is passed
+            userToken={user?.token}
             gameStatus={gameStatus}
           />
         </main>
 
-        {/* ✅ Right Sidebar - Placeholder for Future Features */}
-        <aside className="hidden md:flex w-1/4 bg-gray-800 p-3 overflow-y-auto">
-          <div className="text-center text-gray-400">
-            <UserBetsTracker drawnNumbers={drawnNumbers} />
-            <p>Statistics & Leaderboard (Coming Soon)</p>
-          </div>
+        <aside className="hidden md:flex w-1/4 bg-gray-800 p-3 overflow-y-auto border-l border-gray-700">
+          <RightSectionTabs drawnNumbers={drawnNumbers} />
         </aside>
+      </div>
+
+      <div className="md:hidden w-full p-3">
+        <GameTabs drawnNumbers={drawnNumbers} />
       </div>
     </div>
   );

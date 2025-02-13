@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 const Navbar = () => {
   return (
-    <nav className="bg-gray-800 p-4">
+    <nav className="bg-gray-800 p-2">
       <ul className="flex justify-center space-x-6 text-white">
         <li>
           <Link to="/register" className="hover:text-yellow-500">

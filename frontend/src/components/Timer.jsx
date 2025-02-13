@@ -7,7 +7,6 @@ const Timer = () => {
   const [color, setColor] = useState("bg-gray-600");
 
   useEffect(() => {
-    // Listen for timer updates
     socket.on("timerUpdate", (data) => {
       setTimeLeft(data.timeLeft);
       setStatusMessage(data.message);
@@ -16,7 +15,6 @@ const Timer = () => {
       else if (data.phase === "betting") setColor("bg-green-600");
       else if (data.phase === "drawing") setColor("bg-red-500");
       else if (data.phase === "nextRound") setColor("bg-purple-500");
-      
     });
 
     return () => {
@@ -26,7 +24,7 @@ const Timer = () => {
 
   return (
     <div
-      className={`text-center text-lg font-bold text-white ${color} px-1.5 py-1 rounded-md mb-1 mt-4`}
+      className={`text-center text-base sm:text-lg font-semibold text-white ${color} px-2 py-1 rounded-md`}
     >
       {statusMessage} {timeLeft !== null ? `${timeLeft}` : ""}
     </div>

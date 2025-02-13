@@ -1,22 +1,33 @@
 import { useEffect, useState } from "react";
 import socket from "../socket";
+import { useGame } from "../context/GameContext";
 
 const UserBetsTracker = ({ drawnNumbers }) => {
+  const { gameRoundId } = useGame(); // ✅ Get current round
   const [bets, setBets] = useState([]);
-  const [totalPossibleWinnings, setTotalPossibleWinnings] = useState(0);
-  const [totalActualWinnings, setTotalActualWinnings] = useState(null);
-  const [showFinalTotal, setShowFinalTotal] = useState(false);
-  const [highlightedBets, setHighlightedBets] = useState(new Set());
+  const [highlightedNumbers, setHighlightedNumbers] = useState(new Set());
 
+  // ✅ Load bets from localStorage when gameRoundId changes
   useEffect(() => {
-    socket.on("newBetPlaced", (betData) => {
+    if (!gameRoundId) return; // ✅ Don't do anything if round ID is missing
+    const savedBets = localStorage.getItem(`userBets_${gameRoundId}`);
+    if (savedBets) {
+      setBets(JSON.parse(savedBets));
+    } else {
+      setBets([]); // ✅ If nothing is found, set empty
+    }
+  }, [gameRoundId]);
+
+  // ✅ Listen for real-time updates (Only affect current round)
+  useEffect(() => {
+    const handleNewBet = (betData) => {
       setBets((prevBets) => [
         ...prevBets,
         { ...betData, actualWinningAmount: 0 },
       ]);
-    });
+    };
 
-    socket.on("betResultUpdated", (updatedBet) => {
+    const handleBetResult = (updatedBet) => {
       setBets((prevBets) =>
         prevBets.map((bet) =>
           bet.betId === updatedBet.betId
@@ -24,56 +35,41 @@ const UserBetsTracker = ({ drawnNumbers }) => {
             : bet
         )
       );
-    });
+    };
 
-    socket.on("roundComplete", () => {
-      const newTotal = bets.reduce(
-        (sum, bet) => sum + parseFloat(bet.actualWinningAmount || 0),
-        0
+    const handleRoundComplete = () => {
+      const matchingNumbers = new Set(
+        bets.flatMap((bet) =>
+          bet.selectedNumbers.filter((num) => drawnNumbers.includes(num))
+        )
       );
+      setHighlightedNumbers(matchingNumbers);
 
-      setTotalActualWinnings(newTotal);
-      setShowFinalTotal(true);
-      highlightWinningNumbers();
-
+      // ✅ Clear everything after 5 seconds
       setTimeout(() => {
-        setBets([]); // Clear the table after 5 seconds
+        setBets([]);
+        setHighlightedNumbers(new Set());
+        localStorage.removeItem(`userBets_${gameRoundId}`);
       }, 5000);
-    });
+    };
+
+    const handleNewRound = () => {
+      // ✅ Ensure fresh start visually, data will load from localStorage if needed
+      setHighlightedNumbers(new Set());
+    };
+
+    socket.on("newBetPlaced", handleNewBet);
+    socket.on("betResultUpdated", handleBetResult);
+    socket.on("roundComplete", handleRoundComplete);
+    socket.on("newRound", handleNewRound);
 
     return () => {
-      socket.off("newBetPlaced");
-      socket.off("betResultUpdated");
-      socket.off("roundComplete");
+      socket.off("newBetPlaced", handleNewBet);
+      socket.off("betResultUpdated", handleBetResult);
+      socket.off("roundComplete", handleRoundComplete);
+      socket.off("newRound", handleNewRound);
     };
-  }, [bets]);
-
-  const highlightWinningNumbers = () => {
-    const winningNumbers = new Set(drawnNumbers);
-
-    bets.forEach((bet) => {
-      bet.selectedNumbers.forEach((num) => {
-        if (winningNumbers.has(num)) {
-          highlightedBets.add(bet.betId);
-        }
-      });
-    });
-
-    setHighlightedBets(new Set(highlightedBets));
-
-    setTimeout(() => {
-      setHighlightedBets(new Set()); // Clear highlights after 5 seconds
-    }, 5000);
-  };
-
-  useEffect(() => {
-    setTotalPossibleWinnings(
-      bets.reduce(
-        (sum, bet) => sum + parseFloat(bet.possibleWinningAmount || 0),
-        0
-      )
-    );
-  }, [bets]);
+  }, [bets, drawnNumbers, gameRoundId]);
 
   return (
     <div className="w-full max-w-4xl mt-4 bg-gray-800 p-4 rounded-lg shadow-lg">
@@ -89,7 +85,7 @@ const UserBetsTracker = ({ drawnNumbers }) => {
                 No.
               </th>
               <th className="border border-gray-600 px-2 py-1 text-sm whitespace-nowrap">
-                Chosen Number
+                Chosen Numbers
               </th>
               <th className="border border-gray-600 px-2 py-1 text-sm whitespace-nowrap">
                 PW
@@ -105,17 +101,14 @@ const UserBetsTracker = ({ drawnNumbers }) => {
                 <td className="border border-gray-600 px-2 py-1 text-center text-sm">
                   {index + 1}
                 </td>
-
-                {/* Grid Layout for Chosen Numbers */}
                 <td className="border border-gray-600 px-2 py-1 text-center">
                   <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                     {bet.selectedNumbers.map((num) => (
                       <div
                         key={num}
-                        className={`w-6 h-6 sm:w-6 sm:h-6 flex items-center justify-center rounded-md text-sm font-bold ${
-                          highlightedBets.has(bet.betId) &&
-                          drawnNumbers.includes(num)
-                            ? "bg-green-500 text-white" // Highlight in green
+                        className={`w-6 h-6 sm:w-6 sm:h-6 flex items-center justify-center rounded-md text-sm font-bold transition-all ${
+                          highlightedNumbers.has(num)
+                            ? "bg-green-500 text-white"
                             : "bg-gray-700 text-gray-200"
                         }`}
                       >
@@ -124,11 +117,9 @@ const UserBetsTracker = ({ drawnNumbers }) => {
                     ))}
                   </div>
                 </td>
-
                 <td className="border border-gray-600 px-2 py-1 text-center text-sm">
                   ${bet.possibleWinningAmount.toFixed(2)}
                 </td>
-
                 <td className="border border-gray-600 px-2 py-1 text-center text-sm text-yellow-400">
                   {bet.actualWinningAmount > 0
                     ? `$${bet.actualWinningAmount}`

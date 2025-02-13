@@ -5,13 +5,15 @@ import { GameProvider } from "./context/GameContext"; // ✅ Import GameProvider
 
 function App() {
   return (
-    <GameProvider>
-      <UserProvider>
-        <div className="min-h-screen bg-gray-900 text-white">
-          <AppRouter />
-        </div>
-      </UserProvider>
-    </GameProvider>
+  
+      <GameProvider>
+        <UserProvider>
+          <div className="min-h-screen bg-gray-900 text-white">
+            <AppRouter />
+          </div>
+        </UserProvider>
+      </GameProvider>
+    
   );
 }
 
